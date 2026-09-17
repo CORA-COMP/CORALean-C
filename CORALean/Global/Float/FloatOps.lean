@@ -10,6 +10,13 @@ two rounding directions per operation, and the exact operations that need none.
 Kept separate from that class so the layer stays executable — a real
 interpretation is noncomputable, and so is everything reached through a class
 carrying one. Definitions assume this class alone; theorems assume both.
+
+The folds recurse so that proofs about them are one induction, and run as loops
+because `@[csimp]` swaps in a `Fin.foldr` version — which the compiler accepts
+only with the proof of equality beside it, so the trusted base is untouched and
+the theorems still see the recursion. Each swap sits directly under the
+definition it replaces: `@[csimp]` reaches only the call sites compiled after
+it, so a use above the attribute would keep the recursion and its cost.
 -/
 
 -- Authors:       Tobias Ladner
@@ -76,6 +83,31 @@ def sumDown : {n : ℕ} → (Fin n → 𝕋) → 𝕋
   | 0, _ => zero
   | _ + 1, f => addDown (f 0) (sumDown fun i => f i.succ)
 
+/-- `Fin.foldr` nests to the right, which is what makes this the same sum and
+not merely an equal one: the bracketing is the definition's. -/
+def sumUpImpl {n : ℕ} (f : Fin n → 𝕋) : 𝕋 := Fin.foldr n (fun i acc => addUp (f i) acc) zero
+
+def sumDownImpl {n : ℕ} (f : Fin n → 𝕋) : 𝕋 := Fin.foldr n (fun i acc => addDown (f i) acc) zero
+
+@[csimp] theorem sumUp_eq_impl : @sumUp = @sumUpImpl := by -- --- PROOF ---
+  funext 𝕋 _ n
+  induction n with
+  | zero => funext f; rw [sumUpImpl, Fin.foldr_zero]; rfl
+  | succ n ih =>
+    funext f
+    -- The recursion peels `f 0`; `Fin.foldr_succ` peels the same entry.
+    rw [sumUpImpl, Fin.foldr_succ, ← sumUpImpl, ← congrFun ih fun i => f i.succ]
+    rfl
+
+@[csimp] theorem sumDown_eq_impl : @sumDown = @sumDownImpl := by -- --- PROOF ---
+  funext 𝕋 _ n
+  induction n with
+  | zero => funext f; rw [sumDownImpl, Fin.foldr_zero]; rfl
+  | succ n ih =>
+    funext f
+    rw [sumDownImpl, Fin.foldr_succ, ← sumDownImpl, ← congrFun ih fun i => f i.succ]
+    rfl
+
 /-! ## Repeated addition
 
 A count of copies, one fold per direction. The count comes from an exponent
@@ -94,6 +126,20 @@ needs no direction. -/
 def maximumOver : {n : ℕ} → (Fin n → 𝕋) → 𝕋
   | 0, _ => zero
   | _ + 1, f => maximum (f 0) (maximumOver fun i => f i.succ)
+
+/-- Right-nested like `maximumOver`. `maximum` is associative where `addUp` is
+not, so here the bracketing is a matter of cost alone. -/
+def maximumOverImpl {n : ℕ} (f : Fin n → 𝕋) : 𝕋 :=
+  Fin.foldr n (fun i acc => maximum (f i) acc) zero
+
+@[csimp] theorem maximumOver_eq_impl : @maximumOver = @maximumOverImpl := by -- --- PROOF ---
+  funext 𝕋 _ n
+  induction n with
+  | zero => funext f; rw [maximumOverImpl, Fin.foldr_zero]; rfl
+  | succ n ih =>
+    funext f
+    rw [maximumOverImpl, Fin.foldr_succ, ← maximumOverImpl, ← congrFun ih fun i => f i.succ]
+    rfl
 
 /-- The smallest of `n` values, `zero` above none. `neg` and `maximum` are both
 exact, so the reflection costs nothing and no second fold is needed. -/

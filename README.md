@@ -68,7 +68,7 @@ later. Starting the binary takes about 60 ms.
 ## Building
 
 `CORALean/` is the part of CORALean that `Main.lean` reaches — 260 modules, proofs
-included, copied unchanged from commit `f04459d`. Only those are checked, and only their C
+included, copied unchanged from commit `bbe335f`. Only those are checked, and only their C
 and that of the Mathlib modules they import is compiled.
 
 `install_tool.sh` runs:
