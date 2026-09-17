@@ -28,9 +28,22 @@ if [ ! -x "$HOME/.elan/bin/lake" ]; then
 fi
 export PATH="$HOME/.elan/bin:$PATH"
 
+resources() {
+    echo "cores: $(nproc)"; free -g 2>/dev/null || true
+    df -h "$HERE" "$HOME" 2>/dev/null || true
+}
+
 cd "$HERE"
-lake exe cache get
+resources
+# Unpacking fails for good on a damaged download, which every retry would reuse, so a
+# failure fetches the archives again once.
+if ! lake exe cache get; then
+    echo "unpacking Mathlib's cache failed; fetching it again"
+    resources
+    rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/mathlib"
+    lake exe cache get!
+fi
 lake build coralean-c
 
 echo "built $(ls -l .lake/build/bin/coralean-c)"
-nproc; free -g 2>/dev/null || true
+resources
