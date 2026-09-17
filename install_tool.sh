@@ -29,9 +29,14 @@ fi
 export PATH="$HOME/.elan/bin:$PATH"
 
 resources() {
-    echo "cores: $(nproc)"; free -g 2>/dev/null || true
+    echo "cores: $(nproc), open files: $(ulimit -n) (hard $(ulimit -Hn))"
+    free -g 2>/dev/null || true
     df -h "$HERE" "$HOME" 2>/dev/null || true
 }
+
+# Unpacking Mathlib's cache opens thousands of files at once, past the 1024 a container
+# often allows by default; the soft limit may be raised up to the hard one.
+ulimit -n "$(ulimit -Hn)" 2>/dev/null || ulimit -n 65536 2>/dev/null || true
 
 cd "$HERE"
 resources
